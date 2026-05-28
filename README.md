@@ -233,6 +233,8 @@ Set-ADUser alice -Replace @{ altSecurityIdentities = "X509:<UPN>alice@corp.examp
 
 #### 8. Configure PKINIT clients (Linux / SSSD)
 
+This is not required for Teleport.
+
 `/etc/krb5.conf`:
 
 ```ini
@@ -245,99 +247,6 @@ Set-ADUser alice -Replace @{ altSecurityIdentities = "X509:<UPN>alice@corp.examp
 
 Copy `output/ca/ca.crt` to `/etc/ssl/certs/ad-ca.crt` on each Linux host.
 
-## SQL Server (domain-joined) configuration
-
-For Teleport PKINIT authentication to reach SQL Server, the SQL Server machine needs SPNs registered and a Windows login for each AD user. The SQL Server itself never sees the certificate — it only validates the Kerberos service ticket that Teleport obtains after kinit succeeds.
-
-### 1. Register SPNs
-
-SPNs tell Kerberos which service account to use when issuing a ticket for the SQL Server. Without them, authentication falls back to NTLM or fails entirely.
-
-Run on the DC (or any machine with AD admin rights):
-
-```bat
-REM Replace SQLSVC with the SQL Server service account and SQLHOST with the machine hostname
-setspn -S MSSQLSvc\SQLHOST             DOMAIN\SQLSVC
-setspn -S MSSQLSvc\SQLHOST:1433        DOMAIN\SQLSVC
-setspn -S MSSQLSvc\SQLHOST.EXAMPLE.COM DOMAIN\SQLSVC
-setspn -S MSSQLSvc\SQLHOST.EXAMPLE.COM:1433 DOMAIN\SQLSVC
-```
-
-Verify:
-
-```bat
-setspn -L DOMAIN\SQLSVC
-```
-
-If SQL Server runs as `NT SERVICE\MSSQLSERVER` (the default local service account), use the machine account instead:
-
-```bat
-setspn -S MSSQLSvc\SQLHOST             DOMAIN\SQLHOST$
-setspn -S MSSQLSvc\SQLHOST:1433        DOMAIN\SQLHOST$
-setspn -S MSSQLSvc\SQLHOST.EXAMPLE.COM DOMAIN\SQLHOST$
-setspn -S MSSQLSvc\SQLHOST.EXAMPLE.COM:1433 DOMAIN\SQLHOST$
-```
-
-### 2. Enable Windows Authentication
-
-In SQL Server Configuration Manager or SSMS, confirm the server authentication mode includes Windows Authentication. Mixed mode (SQL + Windows) is fine.
-
-To check via T-SQL:
-
-```sql
-SELECT SERVERPROPERTY('IsIntegratedSecurityOnly');
--- 1 = Windows only, 0 = mixed mode (both are OK)
-```
-
-### 3. Create AD logins for each user
-
-Each AD user that will authenticate via PKINIT needs a SQL Server login:
-
-```sql
-CREATE LOGIN [EXAMPLE\alice] FROM WINDOWS;
-
--- Grant access to a specific database
-USE mydb;
-CREATE USER [EXAMPLE\alice] FOR LOGIN [EXAMPLE\alice];
-ALTER ROLE db_datareader ADD MEMBER [EXAMPLE\alice];
-```
-
-### 4. Trust the CA on the SQL Server machine
-
-Not required for Kerberos auth itself, but good practice so SSMS and other tools on that machine can validate the CA chain:
-
-```bat
-certutil -addstore Root ca.der
-```
-
-### Verifying Kerberos is being used (not NTLM)
-
-After a successful connection, check the auth type in SQL Server:
-
-```sql
-SELECT auth_scheme FROM sys.dm_exec_connections WHERE session_id = @@SPID;
--- Should return KERBEROS, not NTLM
-```
-
-If it returns `NTLM`, SPNs are missing or misconfigured.
-
-## Inspecting generated certificates
-
-```bash
-# Check KDC EKU and KRB5PrincipalName SAN
-openssl x509 -in output/kdc/kdc.crt -noout -text | grep -A6 "Extended Key\|Subject Alt"
-
-# Check user cert UPN and KRB5PrincipalName SANs
-openssl x509 -in output/users/alice/user.crt -noout -text | grep -A8 "Extended Key\|Subject Alt"
-
-# Verify chain
-openssl verify -CAfile output/ca/ca.crt output/kdc/kdc.crt
-openssl verify -CAfile output/ca/ca.crt output/ldaps/ldaps.crt
-openssl verify -CAfile output/ca/ca.crt output/users/alice/user.crt
-
-# Raw ASN.1 dump of KDC cert (shows KRB5PrincipalName encoding)
-openssl asn1parse -in output/kdc/kdc.crt
-```
 
 ## Security notes
 
