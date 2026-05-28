@@ -118,7 +118,6 @@ Use `setup-kdc.ps1` to handle the full installation in one step. Run it as Admin
 Copy the entire `output/` directory to the DC (e.g. `C:\output\`), then:
 
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process
 .\setup-kdc.ps1 -AdcertPath C:\output
 ```
 
