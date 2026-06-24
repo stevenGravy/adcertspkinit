@@ -247,6 +247,47 @@ This is not required for Teleport.
 Copy `output/ca/ca.crt` to `/etc/ssl/certs/ad-ca.crt` on each Linux host.
 
 
+## Exporting the LDAP CA certificate
+
+`output/ca/ca.pem` is the certificate to use for Teleport `ldap_ca_cert`, SQL Server, and Windows Desktop access. It is the CA that signed the LDAPS cert — clients need it to verify the DC's identity.
+
+If you see `x509: certificate signed by unknown authority`, this cert is missing from the client configuration.
+
+### Linux / Mac
+
+```bash
+cat output/ca/ca.pem
+```
+
+To indent for YAML (e.g. Teleport `ldap_ca_cert` field):
+
+```bash
+awk '{print "        " $0}' output/ca/ca.pem
+```
+
+### Windows DC — from the output directory
+
+```powershell
+Get-Content "C:\adcert\output\ca\ca.pem"
+```
+
+### Windows DC — from the Root store
+
+Use this if the output directory is no longer on the DC. Replace `EXAMPLE.COM` with your realm.
+
+```powershell
+$c = Get-ChildItem Cert:\LocalMachine\Root |
+     Where-Object { $_.Subject -like '*EXAMPLE.COM*' } |
+     Select-Object -First 1
+"-----BEGIN CERTIFICATE-----"
+[System.Convert]::ToBase64String($c.RawData, 'InsertLineBreaks')
+"-----END CERTIFICATE-----"
+```
+
+> **Note:** `certutil -ca.cert` does **not** work here. That command requires AD CS (Active Directory Certificate Services) to be installed, which this setup does not use.
+
+---
+
 ## Security notes
 
 - The generated PFX files have **no password**. Set one for production use by removing `-passout pass:` and adding `-passout pass:yourpassword` in `generate.sh`, and protect the `output/` directory accordingly.

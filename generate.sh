@@ -428,5 +428,33 @@ RECOMMENDED: use setup-kdc.ps1 — handles all steps automatically.
      [appdefaults]
        pkinit_prompt_for_pin = false
 
+7. LDAP CA CERT — for Teleport ldap_ca_cert, SQL Server, or Desktop integration
+   Use output/ca/ca.pem. This is the CA that signed the LDAPS cert — clients
+   need it to verify the DC's identity. If you see "x509: certificate signed
+   by unknown authority", this cert is missing from the client config.
+
+   On Linux/Mac (where you ran this script):
+     cat output/ca/ca.pem
+
+   To indent for YAML (e.g. Teleport ldap_ca_cert field):
+     awk '{print "        " $0}' output/ca/ca.pem
+
+   On the Windows DC (if output/ is at C:\adcert\output):
+     Get-Content "C:\adcert\output\ca\ca.pem"
+
+   Or read from the DC's Root store (if the output dir is gone):
+     $c = Get-ChildItem Cert:\LocalMachine\Root |
+INSTALL
+printf '          Where-Object { $_.Subject -like '"'"'*%s*'"'"' } |\n' "$REALM"
+cat <<'INSTALL'
+          Select-Object -First 1
+     "-----BEGIN CERTIFICATE-----"
+     [System.Convert]::ToBase64String($c.RawData, 'InsertLineBreaks')
+     "-----END CERTIFICATE-----"
+
+   Note: certutil -ca.cert does NOT work here — that command requires
+   AD CS (Active Directory Certificate Services) to be installed, which
+   this setup does not use.
+
 ════════════════════════════════════════════════════════════════════
 INSTALL
