@@ -9,6 +9,11 @@ Generates Active Directory-compatible PKI certificates using OpenSSL — no AD C
 
 ## Quick start
 
+Run this command with env variables for the AD and domain controller.
+
+Make sure the `DC_FQDN=dc1.corp.example.com DC_NETBIOS=DC1` matches the domain controller you are installing this on. On AWS with the
+default name like `EAGD-3231` that would be `EAGD-3231.corp.example.com DC_NETBIOS=EAGD-3231.`.
+
 ```bash
 REALM=CORP.EXAMPLE.COM \
 DOMAIN_LOWER=corp.example.com \
