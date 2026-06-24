@@ -231,11 +231,10 @@ export_pfx "$OUT/kdc/kdc.crt" "$OUT/kdc/kdc.key" "$OUT/kdc/kdc.pfx"
 info "  KDC cert : $OUT/kdc/kdc.crt"
 info "  KDC PFX  : $OUT/kdc/kdc.pfx  ← import into DC's Personal store (no password)"
 
-# ── LDAPS Certificate ─────────────────────────────────────────────────────────
-# NTDS service auto-selects a cert from the DC's Personal store that has:
-#   EKU  : serverAuth
-#   SAN  : DNS matching the DC hostname
-info "Generating LDAPS certificate..."
+# ── LDAPS Certificate (optional) ──────────────────────────────────────────────
+# The KDC cert already has serverAuth + DC DNS SANs, so LDAPS works without
+# this cert. Only import ldaps.pfx if you want a dedicated LDAPS-only cert.
+info "Generating LDAPS certificate (optional — KDC cert covers LDAPS by default)..."
 
 cat > "$OUT/ldaps/ldaps.cnf" <<CNFEOF
 [req]
@@ -271,8 +270,8 @@ openssl req -new \
   -config "$OUT/ldaps/ldaps.cnf" 2>/dev/null
 sign_cert "$OUT/ldaps/ldaps.csr" "$OUT/ldaps/ldaps.crt" "$OUT/ldaps/ldaps.cnf" "ldaps_cert_exts"
 export_pfx "$OUT/ldaps/ldaps.crt" "$OUT/ldaps/ldaps.key" "$OUT/ldaps/ldaps.pfx"
-info "  LDAPS cert : $OUT/ldaps/ldaps.crt"
-info "  LDAPS PFX  : $OUT/ldaps/ldaps.pfx  ← import into DC's Personal store (no password)"
+info "  LDAPS cert : $OUT/ldaps/ldaps.crt  (optional)"
+info "  LDAPS PFX  : $OUT/ldaps/ldaps.pfx  (optional — only needed for a dedicated LDAPS-only cert)"
 
 # ── Smart Card / User Certificates ───────────────────────────────────────────
 # EKU:

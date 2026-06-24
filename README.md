@@ -50,11 +50,11 @@ output/
     kdc.csr         KDC certificate signing request
     kdc.crt         KDC certificate (PEM)
     kdc.pfx         KDC cert + key (PKCS#12, no password) — import to DC Personal store
-  ldaps/
+  ldaps/              (optional — KDC cert covers LDAPS by default)
     ldaps.key       LDAPS private key
     ldaps.csr       LDAPS CSR
     ldaps.crt       LDAPS certificate (PEM)
-    ldaps.pfx       LDAPS cert + key (PKCS#12, no password) — import to DC Personal store
+    ldaps.pfx       LDAPS cert + key (PKCS#12, no password) — only needed for a dedicated LDAPS-only cert
   users/
     <username>/
       user.key      User private key
